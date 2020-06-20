@@ -1,6 +1,5 @@
 ## File: geco_x.R
 ## Purpose: save geco_x data in Rdata format (no dups in y)
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # TODO ----

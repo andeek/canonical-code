@@ -1,6 +1,5 @@
 ## File: geco_pp_weights.R
 ## Purpose: get distribution of PC weights for each record
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # pass from command line which noise level, 1, 2, or 5

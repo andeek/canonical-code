@@ -1,6 +1,5 @@
 -- File: ncvoter_voters_create.sql
 -- Purpose: create voters tables for caswell county
--- Author: Andee Kaplan
 -- Date: 06/19/2020
 
 -- location of csv saved can be changed in lines 69 and 76 below.

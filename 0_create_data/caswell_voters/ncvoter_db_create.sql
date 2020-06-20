@@ -1,6 +1,5 @@
 -- File: ncvoter_db_create.sql
 -- Purpose: create ncvoter mysql database
--- Author: Andee Kaplan
 -- Date: 06/19/2020
 
 -- login to mysql

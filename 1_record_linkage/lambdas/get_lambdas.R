@@ -1,6 +1,5 @@
 ## File: get_lambdas.R
 ## Purpose: save object of distribution of linkage for each data set
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # pass from command line which results folder (from running dblink)

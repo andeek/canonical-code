@@ -1,6 +1,5 @@
 -- File: ncvoter_db_snapshots_create.sql
 -- Purpose: create snapshot tables
--- Author: Andee Kaplan
 -- Date: 06/19/2020
 
 -- First convert snapshot files to UTF-8 for loading into db

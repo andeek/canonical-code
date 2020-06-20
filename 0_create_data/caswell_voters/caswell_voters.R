@@ -1,6 +1,5 @@
 ## File: caswell_voters.R
 ## Purpose: save caswell county data in Rdata format and additional copy for dblink
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # TODO ----

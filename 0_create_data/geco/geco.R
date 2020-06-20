@@ -1,6 +1,5 @@
 ## File: geco.R
 ## Purpose: save geco data in Rdata format and additional copy for dblink
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # TODO ----

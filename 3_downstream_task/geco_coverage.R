@@ -1,6 +1,5 @@
 ## File: geco_coverage.R
 ## Purpose: Get empirical coverage of downstream tasks after canonicalization for geco datasets
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # pass from command line which noise level, 1, 2, or 5
@@ -18,7 +17,6 @@ output_folder <- args[5]
 
 
 # library ----
-library(igraph)
 library(dplyr)
 library(tidyr)
 library(rstanarm)
@@ -31,7 +29,8 @@ set.seed(1234)
 load(paste0(data_folder, data_set, "_bpsigma_", noise, ".Rdata"))
 org_data <- data # store for later
 
-# linkage samples
+# load dblink results ----
+load(paste0(linkage_folder, "geco1_results.Rdata"))
 mcmclink <- lambda
 
 # get cluster assignments

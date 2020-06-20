@@ -1,6 +1,5 @@
 ## File: geco_reg.R
 ## Purpose: Perform canonicalization and downstream task on geco data sets
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # pass from command line which noise level, 1, 2, or 5
@@ -17,7 +16,6 @@ linkage_folder <- args[4]
 output_folder <- args[5]
 
 # library ----
-library(igraph)
 library(dplyr)
 library(tidyr)
 library(rstanarm)

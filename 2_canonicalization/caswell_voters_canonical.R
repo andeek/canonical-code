@@ -1,6 +1,5 @@
 ## File: caswell_voters_canonical.R
 ## Purpose: perform canonicalization on caswell voter data
-## Author: Andee Kaplan
 ## Date: 06/19/2020
 
 # TODO ----
@@ -18,7 +17,6 @@ output_folder <- "./"
 
 ## libraries
 library(representr)
-library(eber)
 
 ## prototyping for caswell
 # load data ----
@@ -30,6 +28,46 @@ rownames(caswell_voters) <- 1:nrow(caswell_voters) # renumber
 load(paste0(linkage_folder, "caswell_voters_results.Rdata"))
 
 # get estimated links mpmms
+# functions for working with mpmms
+memb2clust <- function(membership, include.singletons=FALSE) {
+  membership.freqs <- table(membership)
+  inv.index <- vector(mode="list", length=length(membership.freqs))
+  names(inv.index) <- names(membership.freqs)
+  if (is.null(names(membership))) {
+    named.membership = FALSE
+  } else {
+    named.membership = TRUE
+  }
+  for (i in seq_along(membership)) {
+    membership.id <- as.character(membership[i])
+    if (named.membership) {val.i <- names(membership)[i]} else {val.i <- i}
+    inv.index[[membership.id]] <- c(inv.index[[membership.id]],val.i)
+  }
+  if (!include.singletons) {
+    sizes <- sapply(inv.index, length)
+    inv.index <- inv.index[sizes > 1]
+  }
+  return(inv.index)
+}
+clust2pairs <- function(clusters) {
+  pairs <- list()
+  for (i in seq_along(clusters)) {
+    clust.i <- clusters[[i]]
+    n.i <- length(clust.i)
+    if (n.i == 2) {
+      # set is already a pair
+      pairs[[length(pairs)+1]] <- clust.i
+    } else if (n.i > 2) {
+      # break up cluster into pairs
+      for(j1 in seq(1, n.i-1)) {
+        for(j2 in seq(j1+1, n.i)) {
+          pairs[[length(pairs)+1]] <- c(clust.i[j1],clust.i[j2])
+        }
+      }
+    }
+  }
+  return(pairs)
+}
 mpmms_clust <- memb2clust(mpmms_lambda)
 mpmms_pair <- clust2pairs(memb2clust(mpmms_lambda))
 
