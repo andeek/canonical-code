@@ -19,6 +19,8 @@ The following is a list of packages and technologies that must be installed and 
 
 **MySQL**
 
+See https://dev.mysql.com/doc/mysql-getting-started/en/ for details on getting started with MySQL.
+
 **R version 3.6.3**
 
 1. ggplot (CRAN)
