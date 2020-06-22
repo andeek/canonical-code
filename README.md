@@ -1,6 +1,6 @@
 # canonical-code
 
-Code appendix accompanying the paper "Predicting Voter Party Registration from Linked Data with Error Propagation."
+Code appendix accompanying the paper "Entity Resolution and the Downstream Task: A Case Study of North Carolina Voter Registration Records"
 
 This appendix contains the following folders:
 
