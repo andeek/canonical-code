@@ -19,7 +19,7 @@ The following is a list of packages and technologies that must be installed and 
 
 **MySQL**
 
-**R**
+**R version 3.6.3**
 
 1. ggplot (CRAN)
 2. dplyr (CRAN)
@@ -35,7 +35,7 @@ The following is a list of packages and technologies that must be installed and 
 12. knitr (CRAN)
 13. kableExtra (CRAN)
 
-**Python**
+**Python 2.7.16**
 
 1. geco-data-generator-corruptor (https://dmm.anu.edu.au/geco/index.php)
 2. datetime
@@ -44,5 +44,5 @@ The following is a list of packages and technologies that must be installed and 
 **Apache Spark**
 
 1. spark-2.3.1
-2. dblink v0.1.0 (https://github.com/cleanzr/dblink)
+2. dblink v0.1.0 (https://github.com/cleanzr/dblink/releases/tag/v0.1)
 
