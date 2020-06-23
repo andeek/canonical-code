@@ -23,7 +23,7 @@ See https://dev.mysql.com/doc/mysql-getting-started/en/ for details on getting s
 
 **R version 3.6.3**
 
-1. ggplot (CRAN)
+1. ggplot2 (CRAN)
 2. dplyr (CRAN)
 3. tidyr (CRAN)
 4. babynames (CRAN)
