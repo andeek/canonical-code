@@ -1,6 +1,6 @@
 ## File: caswell_voters_canonical.R
 ## Purpose: perform canonicalization on caswell voter data
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # TODO ----
 # 0. Be sure the record linkage results have completed for caswell county.
@@ -161,6 +161,9 @@ data <- caswell_voters[, proto_vars] %>% mutate_at(.vars = proto_vars[!col_type 
 test_data <- caswell_test_voters[, proto_vars]
 data$birth_place[data$birth_place == ""] <- "99_BLANK"
 data$birth_place[data$birth_place == "GU"] <- "99_BLANK" ## this is throwing errors, 4 records with GU
+
+## realign db id to upweight newer databases
+data$db_id <- limits$db_id[2] - data$db_id + 1
 
 pp_weights_time <- pp_weights(data, lambda, "proto_minimax", distance = dist_col_type_time, col_type = col_type, weights = weights, limits = limits, scale = TRUE)
 

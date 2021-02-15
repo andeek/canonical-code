@@ -1,6 +1,6 @@
 ## File: geco_coverage.R
 ## Purpose: Get empirical coverage of downstream tasks after canonicalization for geco datasets
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # pass from command line which noise level, 1, 2, or 5
 # Rscript geco_reg 1 geco ../data/geco/ ../results/lambdas/ ../results/canonical/

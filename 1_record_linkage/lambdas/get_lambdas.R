@@ -1,6 +1,6 @@
 ## File: get_lambdas.R
 ## Purpose: save object of distribution of linkage for each data set
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # pass from command line which results folder (from running dblink)
 # Rscript get_lambdas.R geco1_results

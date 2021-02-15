@@ -1,17 +1,14 @@
 Package: representr
 Type: Package
-Title: Create Representative Records Post-Record Linkage
-Version: 0.1.0
+Title: Create Representative Records After Entity Resolution 
+Version: 0.1.1
 Authors@R: person("XXXX", "XXXX", email = "XXXX.XXXX@example.com",
                   role = c("aut", "cre"))
-Description: Creates representative records for use in downstream tasks after 
-    record linkage is performed. Multiple methods for creating the records are 
-    provided, including two methods based on the posterior distribution of linkage
-    resulting from a Bayesian analysis.
+Description: An implementation of XXXX that creates representative records for use in downstream tasks after entity resolution is performed. Multiple methods for creating the representative records (data sets) are provided. 
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
 Imports:
   doParallel,
   foreach,
@@ -19,5 +16,6 @@ Imports:
 Suggests: knitr,
   rmarkdown,
   blink,
-  ggplot2
+  ggplot2,
+  stringdist
 VignetteBuilder: knitr

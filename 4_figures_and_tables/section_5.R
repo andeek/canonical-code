@@ -1,6 +1,6 @@
 ## File: section_5.R
 ## Purpose: Create figures and plots from Section 5 of paper.
-## Date: 06/19/2020
+## Date: 02/21/2021
 
 # TODO ----
 # 0. Be sure you have run all code in folders 0_create_data through 3_downstream_task
@@ -23,11 +23,12 @@ reg_folder <- "./"
 library(tidyverse) # plotting, data manip, etc.
 library(knitr) # tables
 library(kableExtra)
+library(ggridges) # ridge plots
 
 theme_set(theme_bw(base_family = "serif"))
 set.seed(42)
 
-# Section 5.1 ----
+# Section 5 ----
 ## caswell-rl-results
 caswell_rl_res <- readLines(paste0(results_folder, "evaluation-results.txt"))
 caswell_precision <- as.numeric(stringr::str_extract(caswell_rl_res[4], "\\d.\\d+"))
@@ -37,24 +38,6 @@ caswell_diag <- read.csv(paste0(results_folder, "caswell_voters_results/diagnost
 load(pasteo(linkage_folder, "caswell_voters_results.Rdata"))
 
 n_ci <- quantile(caswell_diag$numObservedEntities, c(.025, .975))
-
-# Section 5.2 ----
-## Figure 1 ----
-n_ests <- data.frame(est_type = c("n_map", "ncsbe"),
-                     n = c(as.numeric(names(table(caswell_diag$numObservedEntities))[table(caswell_diag$numObservedEntities) == max(table(caswell_diag$numObservedEntities))]), 14740))
-
-caswell_diag %>%
-  ggplot() +
-  geom_density(aes(numObservedEntities)) +
-  labs(x = "Estimated number of voters", y = "Posterior density") -> dens.p
-
-dens.df <- ggplot_build(dens.p)$data[[1]]
-
-dens.p + 
-  geom_area(data = dens.df %>% filter(x > n_ci[1] & x < n_ci[2]), aes(x = x, y = y), fill = "grey") +
-  geom_vline(aes(xintercept = n, colour = est_type, lty = est_type), data = n_ests) +
-  scale_colour_discrete(expression(paste(hat(n), " estimate")), labels = c("MAP", "NCSBE")) +
-  scale_linetype_discrete(expression(paste(hat(n), " estimate")), labels = c("MAP", "NCSBE"))
 
 ## Figure 2 ----
 # load canonicalization results
@@ -72,7 +55,7 @@ ggplot() +
   xlab("PC Weights with Timestamp Distance") +
   ylab("") 
 
-## Table 3 ----
+## Table 5 ----
 # load data
 # caswell data
 load(paste0(data_folder, "caswell_voters.Rdata"))
@@ -107,6 +90,46 @@ vars <- c(cat_vars, num_vars)
 
 ## prototyping for caswell
 # get estimated links mpmms
+# functions for working with mpmms
+memb2clust <- function(membership, include.singletons=FALSE) {
+  membership.freqs <- table(membership)
+  inv.index <- vector(mode="list", length=length(membership.freqs))
+  names(inv.index) <- names(membership.freqs)
+  if (is.null(names(membership))) {
+    named.membership = FALSE
+  } else {
+    named.membership = TRUE
+  }
+  for (i in seq_along(membership)) {
+    membership.id <- as.character(membership[i])
+    if (named.membership) {val.i <- names(membership)[i]} else {val.i <- i}
+    inv.index[[membership.id]] <- c(inv.index[[membership.id]],val.i)
+  }
+  if (!include.singletons) {
+    sizes <- sapply(inv.index, length)
+    inv.index <- inv.index[sizes > 1]
+  }
+  return(inv.index)
+}
+clust2pairs <- function(clusters) {
+  pairs <- list()
+  for (i in seq_along(clusters)) {
+    clust.i <- clusters[[i]]
+    n.i <- length(clust.i)
+    if (n.i == 2) {
+      # set is already a pair
+      pairs[[length(pairs)+1]] <- clust.i
+    } else if (n.i > 2) {
+      # break up cluster into pairs
+      for(j1 in seq(1, n.i-1)) {
+        for(j2 in seq(j1+1, n.i)) {
+          pairs[[length(pairs)+1]] <- c(clust.i[j1],clust.i[j2])
+        }
+      }
+    }
+  }
+  return(pairs)
+}
 mpmms_clust <- memb2clust(mpmms_lambda)
 mpmms_pair <- clust2pairs(memb2clust(mpmms_lambda))
 
@@ -141,7 +164,7 @@ data.frame(prototype = c("Random", "Composite", "Minimax", "PC Weighted", "PC Th
         escape = FALSE, align = c("l", "r"),
         booktabs = TRUE, col.names = c("Method", "$\\hat{D}_{KL}$"), linesep = "") 
 
-## Table 4 ----
+## Table 6 ----
 est_clusters[[which(uni_clust == 5)[3]]] %>%
   unique() %>%
   rownames() %>%
@@ -162,108 +185,25 @@ est_clusters[[which(uni_clust == 5)[3]]] %>%
         escape = FALSE,
         booktabs = TRUE, align = c("l", "l", "l", "l", "l", "l", "r", "r")) 
 
-# Section 5.3 ----
-## Table 5 ----
+## Figure 4 ----
 # noise = 0
-load(paste0(canonical_folder, "caswell_voters_proto_0.Rdata"))
+load(paste0(canonical_folder, "caswell_voters_proto.Rdata"))
 pp_weights_df <- data.frame(weights = pp_weights, noise = 0, type = "col_wise")
 pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights_time, noise = 0, type = "timestamp"))
 
-load(paste0(reg_folder, "caswell_voters_reg_noise_0.Rdata"))
-m1_coefs_df <- data.frame(m1_coefs, noise = 0)
-kl_div_df <- data.frame(res_kl_div, noise = 0)
-data_pred_df <- data.frame(data_pred_results, noise = 0)
-test_data_pred_df <- data.frame(test_data_pred_results, noise = 0)
+load(paste0(reg_folder, "caswell_voters_reg.Rdata"))
 
-test_data_pred_df %>%
-  group_by(model) %>%
-  summarise(mean_prec = mean(precision), sd_prec = sd(precision), mean_recall = mean(recall), sd_recall = sd(recall)) %>%
-  dplyr::mutate(Method = factor(model, levels = c("random", "composite", "minimax", "pp_weighted", "pp_thresh", "pp_weighted_time", "pp_thresh_time"), labels = c("Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "PC Weighted (Timestamp)", "PC Threshold (Timestamp)"))) %>%
-  dplyr::mutate(Precision = paste0(round(mean_prec, 4), " (", scales::number(sd_prec, accuracy = .001), ")")) %>%
-  dplyr::mutate(Recall = paste0(round(mean_recall, 4), " (", scales::number(sd_recall, accuracy = .001), ")")) %>%
-  ungroup() %>%
-  dplyr::mutate(max_prec = max(mean_prec), max_recall = max(mean_recall)) %>%
-  dplyr::mutate(Precision = ifelse(round(mean_prec, 4) == round(max_prec, 4), paste0("\\textbf{", Precision, "}"), Precision)) %>%
-  dplyr::mutate(Recall = ifelse(round(mean_recall, 4) == round(max_recall, 4), paste0("\\textbf{", Recall, "}"), Recall)) %>%
-  select(Method:Recall) %>%
-  dplyr::arrange(Method) %>%
-  kable("latex", booktabs = T, escape = FALSE, align = c("l", "r", "r"),
-        caption = "\\label{tab:prec_recall} Posterior mean and standard deviation (in parentheses) of precision and recall of out-of-sample prediction for each canonicalization method. The highest values for each measure are presented in bold. There is not a discernible difference in performance between any of the canonicalization methods.", linesep = "")
+auc_dsn %>%
+  mutate(Model = factor(Model, 
+                        labels = rev(c("Random", "Composite", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")), 
+                        levels = rev(c("Random", "Average", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")))) %>%
+  ggplot(aes(y = Model, x = auc)) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.025, 0.5, 0.975), vline_color = "white") +
+  xlab("Posterior Test Area Under ROC Curve") + ylab("")
 
-
-## Figure 4 ----
-m1_coefs_df %>%
-  select(X.Intercept.:ethnic_codeUN, statistic, model) %>%
-  gather(var, value, X.Intercept.:ethnic_codeUN) %>%
-  spread(statistic, value) %>%
-  rename(LB = `2.5%`, UB = `97.5%`) %>% 
-  mutate(signif = LB*UB > 0) %>%
-  mutate(model = factor(model, 
-                        levels = rev(c("random", "composite", "minimax", "pp_weighted", "pp_thresh", "pp_weighted_time", "pp_thresh_time")),
-                        labels = rev(c("Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "PC Weighted\n(Timestamp)", "PC Threshold\n(Timestamp)")))) %>%
-  mutate(var = factor(var, 
-                      levels = c("age", "ethnic_codeNL", "ethnic_codeUN", "race_codeB", "race_codeI", "race_codeM", "race_codeO", "race_codeU", "race_codeW", "sex_codeM", "sex_codeU", "X.Intercept."),
-                      labels = c("Age", "EthnicNL", "EthnicUN", "RaceB", "RaceI", "RaceM", "RaceO", "RaceU", "RaceW", "SexM", "SexU", "Intercept"))) %>%
-  filter(var != "Intercept") %>%
-  ggplot() +
-  geom_segment(aes(x = LB, xend = UB, y = model, yend = model, colour = signif)) +
-  geom_point(aes(x = mean, y = model, colour = signif)) +
-  facet_wrap(.~var, nrow = 1, scales = "free_x") +
-  scale_color_manual("Statistically significant", values = c("black", "red")) +
-  ylab("") + xlab("95% CI") +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
-
-# Section 5.3.1 ----
-# noise = ,1
-load(paste0(canonical_folder, "caswell_voters_proto_0.1.Rdata"))
-pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights, noise = .1, type = "col_wise"))
-pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights_time, noise = .1, type = "timestamp"))
-
-load(paste0(reg_folder, "caswell_voters_reg_noise_0.1.Rdata"))
-m1_coefs_df <- bind_rows(m1_coefs_df, data.frame(m1_coefs, noise = .1))
-kl_div_df <- bind_rows(kl_div_df, data.frame(res_kl_div, noise = .1))
-data_pred_df <- bind_rows(data_pred_df, data.frame(data_pred_results, noise = .1))
-test_data_pred_df <- bind_rows(test_data_pred_df, data.frame(test_data_pred_results, noise = .1))
-
-# noise = ,3
-load(paste0(canonical_folder, "caswell_voters_proto_0.3.Rdata"))
-pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights, noise = .3, type = "col_wise"))
-pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights_time, noise = .3, type = "timestamp"))
-
-load(paste0(reg_folder, "caswell_voters_reg_noise_0.3.Rdata"))
-m1_coefs_df <- bind_rows(m1_coefs_df, data.frame(m1_coefs, noise = .3))
-kl_div_df <- bind_rows(kl_div_df, data.frame(res_kl_div, noise = .3))
-data_pred_df <- bind_rows(data_pred_df, data.frame(data_pred_results, noise = .3))
-test_data_pred_df <- bind_rows(test_data_pred_df, data.frame(test_data_pred_results, noise = .3))
-
-## Table 6 ----
-kl_div_df %>%
-  filter(noise %in% c(.10, .30)) %>%
-  group_by(noise) %>%
-  dplyr::mutate(min_kl = min(kl_div)) %>%
-  dplyr::mutate(kl_div = ifelse(round(kl_div, 4) == round(min_kl, 4), paste0("\\textbf{", round(kl_div, 4), "}"), round(kl_div, 4))) %>%
-  select(noise, prototype, kl_div) %>%
-  rename(Method = prototype) -> kl_div_tbl
-
-test_data_pred_df %>%
-  filter(noise %in% c(.10, .30)) %>%
-  group_by(model, noise) %>%
-  summarise(mean_prec = mean(precision), sd_prec = sd(precision), mean_recall = mean(recall), sd_recall = sd(recall)) %>%
-  dplyr::mutate(Method = factor(model, levels = c("random", "composite", "minimax", "pp_weighted", "pp_thresh", "pp_weighted_time", "pp_thresh_time"), labels = c("Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "PC Weighted (Timestamp)", "PC Threshold (Timestamp)"))) %>%
-  dplyr::mutate(Precision = paste0(round(mean_prec, 4), " (", scales::number(sd_prec, accuracy = .001), ")")) %>%
-  dplyr::mutate(Recall = paste0(round(mean_recall, 4), " (", scales::number(sd_recall, accuracy = .001), ")")) %>%
-  group_by(noise) %>%
-  dplyr::mutate(max_prec = max(mean_prec), max_recall = max(mean_recall)) %>%
-  dplyr::mutate(Precision = ifelse(round(mean_prec, 4) == round(max_prec, 4), paste0("\\textbf{", Precision, "}"), Precision)) %>%
-  dplyr::mutate(Recall = ifelse(round(mean_recall, 4) == round(max_recall, 4), paste0("\\textbf{", Recall, "}"), Recall)) %>%
-  ungroup() %>%
-  select(noise, Method:Recall) %>%
-  left_join(kl_div_tbl) %>%
-  dplyr::mutate(Method = factor(Method, levels = c("Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "PC Weighted (Timestamp)", "PC Threshold (Timestamp)"))) %>%
-  dplyr::arrange(noise, Method) %>%
-  select(Method, kl_div, Precision, Recall) %>%
-  kable("latex", booktabs = T, escape = FALSE, align = c("l", "r", "r", "r"),
-        caption = "\\label{tab:prec_recall_2}Empirical KL Divergence, posterior mean and standard deviation (in parentheses) of precision and recall of out-of-sample prediction for each canonicalization method after adding noise to different amounts of the Caswell Voter data. The lowest $\\hat{D}_{KL}$ and highest precision and recall for each metric within each noise level are highlighted in bold.",
-        col.names = c("Method", "$\\hat{D}_{KL}$", "Precision", "Recall")) %>%
-  pack_rows("10\\\\% Noise", 1, 7, escape = FALSE) %>%
-  pack_rows("30\\\\% Noise", 8, 14, escape = FALSE) 
+ave_prob_dsn %>%
+  mutate(Model = factor(Model, 
+                        levels = rev(c("Random", "Composite", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")))) %>%
+  ggplot(aes(y = Model, x = pp)) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.025, 0.5, 0.975), vline_color = "white") +
+  xlab("Posterior Predicted Pr(DEM | Male)") + ylab("")

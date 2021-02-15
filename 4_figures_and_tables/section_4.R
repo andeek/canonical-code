@@ -1,5 +1,5 @@
-## File: section_B.R
-## Purpose: Create figures and plots from Section B of appendix.
+## File: section_4.R
+## Purpose: Create figures and plots from Section 4 of paper
 ## Date: 02/15/2021
 
 # TODO ----
@@ -27,7 +27,7 @@ library(kableExtra)
 theme_set(theme_bw(base_family = "serif"))
 set.seed(42)
 
-# Section B ----
+# Section 4 ----
 load(paste0(data_folder, "geco_bpsigma_1.Rdata"))
 data_1 <- data
 test_data_1 <- test_data
@@ -51,19 +51,7 @@ rm(test_data)
 rm(identity)
 rm(originals_idx)
 
-# Section B.1 ----
-## Table 1 ----
-data.frame(Column = c("birth date", "sex", "education level", "income", "blood pressure"),
-           distort = c("Add random noise to the date according to Normal(0, 25) distribution",
-                       "Sample male or female with equal probability",
-                       "Sample from the existing education levels with equal probability",
-                       "Sample from the existing income values with equal probability",
-                       "Sample from the existing blood pressure values with equal probability")) %>%
-  rename_("Distortion rule" = "distort") %>%
-  kable(caption = "Rules for adding distortion to the duplicates according to each column type.", 
-        booktabs = TRUE) 
-
-# Section B.2 ----
+## Estimated entities
 perf <- readLines(paste0(results_folder, "evaluation-results.txt"))
 mpmms_error <- 1 - c(as.numeric(stringr::str_extract(perf[5], "\\d+.\\d+")), as.numeric(stringr::str_extract(perf[4], "\\d+.\\d+")))
 mcmc_perf <- 1 - mpmms_error
@@ -75,22 +63,58 @@ load(paste0(linkage_folder, "geco1_results.Rdata"))
 n_ci_geco <- quantile(geco_diag$numObservedEntities, c(.025, .975))
 
 ## Figure 1 ----
-n_ests_geco <- data.frame(est_type = c("n_map", "true"),
-                          n = c(as.numeric(names(table(geco_diag$numObservedEntities))[table(geco_diag$numObservedEntities) == max(table(geco_diag$numObservedEntities))]), 350))
+load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_1.Rdata"))
+pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
+  gather(record_id, pp_weight, -iter) %>%
+  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
+  select(-junk) %>%
+  mutate(record_id = as.numeric(record_id), noise = 1)
 
-geco_diag %>%
+load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_2.Rdata"))
+pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
+  gather(record_id, pp_weight, -iter) %>%
+  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
+  select(-junk) %>%
+  mutate(record_id = as.numeric(record_id), noise = 2) %>%
+  bind_rows(pp_weights_df)
+
+load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_5.Rdata"))
+pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
+  gather(record_id, pp_weight, -iter) %>%
+  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
+  select(-junk) %>%
+  mutate(record_id = as.numeric(record_id), noise = 5) %>%
+  bind_rows(pp_weights_df)
+
+pp_weights_df %>%
+  group_by(record_id) %>%
+  summarise(mean_pp_weight = mean(pp_weight)) %>%
+  right_join(pp_weights_df, by = c("record_id")) %>%
+  mutate(dup = ! record_id %in% originals_idx) %>% 
+  ungroup() %>%
+  dplyr::mutate(record_id = factor(record_id)) %>%
+  dplyr::mutate(record_id = fct_reorder(record_id, mean_pp_weight)) %>%
+  dplyr::mutate(noise = paste0(expression("sigma[epsilon]=="), noise)) -> pp_weights_df
+
+pp_weights_df %>%
   ggplot() +
-  geom_density(aes(numObservedEntities)) +
-  labs(x = "Estimated number of entities", y = "Posterior density") -> dens.p
+  geom_boxplot(aes(record_id, pp_weight, fill = dup, colour = dup)) +
+  geom_hline(aes(yintercept = 0.5), lty = 2) +
+  facet_grid(noise~., labeller = label_parsed) +
+  theme(legend.position = "bottom",
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  xlab("Record") + ylab("PC Weight Distribution (100 repetitions)") +
+  scale_colour_discrete("Duplicate") +
+  scale_fill_discrete("Duplicate")
 
-dens.df <- ggplot_build(dens.p)$data[[1]]
-
-dens.p + 
-  geom_area(data = dens.df %>% filter(x > n_ci_geco[1] & x < n_ci_geco[2]), aes(x = x, y = y), fill = "grey") +
-  geom_vline(aes(xintercept = n, colour = est_type, lty = est_type), data = n_ests_geco) +
-  scale_colour_discrete(expression(paste(hat(n), " estimate")), labels = c("MAP", "True")) +
-  scale_linetype_discrete(expression(paste(hat(n), " estimate")), labels = c("MAP", "True"))
-
+pp_weights_df %>%
+  group_by(noise, iter) %>%
+  summarise(n = sum(pp_weight >= 0.5)) %>%
+  group_by(noise) %>%
+  summarise(mean_n = mean(n), median_n = median(n), sd_n = sd(n), ub_n = quantile(n, .975), lb_n = quantile(n, .025)) -> summary_n
 
 ## load downstream results
 # noise = 1
@@ -346,8 +370,22 @@ bias_tmp %>%
   rename(Model = model) %>%
   ungroup() -> m0_bias_df1
 
+## Table 3 ----
+kl_div_table %>%
+  full_join(kl_div_table1, by = c("prototype", "noise")) %>%
+  ungroup() %>%
+  mutate_if(is.character, coalesce, "0") -> kl_div_df
 
-## Table 2 ----
+kl_div_df %>% arrange(noise, prototype) %>% select(-noise) %>%
+  kable("latex", align = "c", booktabs = T, 
+        caption = "\\label{tab:kl_div_table_2} Mean and standard deviation (in parenthesis) of KL divergence for all five canonicalization methods in two data scenarios -- errors in all downstream variables (left) and errors in explanatory variables only (right) -- for three noise levels, $\\sigma = 1, 2, 5$. The evaluation metrics are based on 100 representative data sets generated for each method.", escape = FALSE, 
+        col.names = c("Method", rep(c("$\\hat{D}_{KL}$"), 2))) %>%
+  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 5, escape = FALSE) %>%
+  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 6, 10, escape = FALSE) %>%  
+  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 11, 15, escape = FALSE) %>%
+  add_header_above(c(" ", "Errors in All Downstream Variables" = 1, "Errors in Explanatory Variables Only" = 1))
+
+## Table 4 ----
 mse_table %>% rename(Model = prototype) %>%
   full_join(m0_bias_df, by = c("Model", "noise")) %>%
   full_join(coverage_table, by = c("Model", "noise", "var")) %>%
@@ -357,55 +395,17 @@ mse_table %>% rename(Model = prototype) %>%
   ungroup() -> all_m0_df
 
 all_m0_df %>% 
-  filter(var == "X.Intercept.") %>% 
+  filter(var == "income") %>% 
   arrange(noise, Model) %>% 
   select(-noise, -var) %>%
   kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-intercept} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the intercept coefficient for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
+        caption = "\\label{tab:m0-bias-coverage-supp} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the regression coefficient for income for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
         col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
   pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
   pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
   pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Intercept" = 6)) %>%
-  landscape()
-
-## Table 3 ----
-all_m0_df %>% 
-  filter(var == "sexM") %>% 
-  arrange(noise, Model) %>% 
-  select(-noise, -var) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-sex} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the coefficient for sex for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Sex" = 6)) %>%
-  landscape()
+  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3))
 
 
-## Table 4 ----
-all_m0_df %>% 
-filter(var == "sexM.income") %>% 
-  arrange(noise, Model) %>% 
-  select(-noise, -var) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-sex-income} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the coefficient for the interaction of sex and income for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Sex*Income" = 6)) %>%
-  landscape()
 
-# Section B.3 ----
-## Figure 2 ----
-geco_diag %>%
-  dplyr::select(-`systemTime-ms`) %>%
-  gather(-iteration, key = "metric", value = "value") %>%
-  ggplot() +
-  geom_line(aes(iteration, value, group = metric)) +
-  facet_wrap(.~metric, scales = "free_y")
+

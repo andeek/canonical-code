@@ -1,6 +1,6 @@
 ## File: section_1.R
 ## Purpose: Create figures and plots from Section 1 of paper.
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # TODO ----
 # 0. Be sure you have run all code in folders 0_create_data through 3_downstream_task
@@ -31,7 +31,7 @@ clust <- unlist(lapply(est_clusters, nrow))
 uni_clust <- unlist(lapply(est_clusters, function(x) nrow(unique(x))))
 
 ## Table 1 ----
-est_clusters[[which(uni_clust == 5)[3]]] %>%
+est_clusters[[which(uni_clust == 5)[1]]] %>%
   unique() %>%
   rowwise() %>%
   rename_("First" = "first_name", "Last" = "last_name", "Sex" = "sex",

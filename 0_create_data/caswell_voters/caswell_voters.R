@@ -1,6 +1,6 @@
 ## File: caswell_voters.R
 ## Purpose: save caswell county data in Rdata format and additional copy for dblink
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # TODO ----
 # 0. Be sure you have created the caswell_voters db table, see sql scripts in this folder.

@@ -1,6 +1,6 @@
 ## File: geco_pp_weights.R
 ## Purpose: get distribution of PC weights for each record
-## Date: 06/19/2020
+## Date: 02/15/2021
 
 # pass from command line which noise level, 1, 2, or 5
 # Rscript geco_pp_weights 1 geco ../data/geco/ ../results/lambdas/ ../results/canonical/

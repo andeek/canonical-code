@@ -43,7 +43,7 @@ An object of class \code{integer} of length 500.
 
 An object of class \code{integer} of length 500.
 
-An object of class \code{matrix} with 100000 rows and 500 columns.
+An object of class \code{matrix} (inherits from \code{array}) with 100000 rows and 500 columns.
 }
 \source{
 Names and birthdates generated with the ANU Online Personal Data Generator and Corruptor (GeCO) version 0.1 \url{https://dmm.anu.edu.au/geco/}.
