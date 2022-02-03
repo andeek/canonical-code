@@ -1,5 +1,5 @@
-## File: section_B.R
-## Purpose: Create figures and tables from Section B of appendix.
+## File: section_3.R
+## Purpose: Create figures and tables from Section 3 of paper
 ## Date: 02/03/2022
 
 # TODO ----
@@ -7,13 +7,13 @@
 # 1. denote geco record linkage results folder location
 #    where are your lambdas stored as a result of 1_record_linkage/lambdas/get_lambdas.R?
 linkage_folder <- "./"
-#    where are the raw linkage results stored as a result of 1_record_linkage/caswell_voters/caswell.conf?
+#    where are the raw linkage results stored as a result of 1_record_linkage/geco/geco.conf?
 results_folder <- "./"
 # 2. denote geco data folder location
 #    where is your data stored as a result of 0_create_data/geco/geco.R and 0_create_data/geco/geco_x.R??
 data_folder <- "./"
 # 3. denote downstream task output folder location
-#    where are the downstream results stored as a result of 3_downstream_task/geco_coverage.R?
+#    where are the canonicalization results stored as a result of 3_downstream_task/geco_coverage.R?
 reg_folder <- "./"
 
 ## libraries ----
@@ -24,7 +24,7 @@ library(kableExtra)
 theme_set(theme_bw(base_family = "serif"))
 set.seed(42)
 
-# Section B ----
+# Section 4 ----
 load(paste0(data_folder, "geco_bpsigma_1.Rdata"))
 data_1 <- data
 test_data_1 <- test_data
@@ -48,20 +48,17 @@ rm(test_data)
 rm(identity)
 rm(originals_idx)
 
-# Section B.1 ----
-## Table 1 ----
-data.frame(Column = c("birth date", "sex", "education level", "income", "blood pressure"),
-           distort = c("Add random noise to the date according to Normal(0, 25) distribution",
-                       "Sample male or female with equal probability",
-                       "Sample from the existing education levels with equal probability",
-                       "Sample from the existing income values with equal probability",
-                       "Sample from the existing blood pressure values with equal probability")) %>%
-  rename_("Distortion rule" = "distort") %>%
-  kable(caption = "Rules for adding distortion to the duplicates according to each column type.", 
-        booktabs = TRUE) 
+## Estimated entities
+perf <- readLines(paste0(results_folder, "evaluation-results.txt"))
+mpmms_error <- 1 - c(as.numeric(stringr::str_extract(perf[5], "\\d+.\\d+")), as.numeric(stringr::str_extract(perf[4], "\\d+.\\d+")))
+mcmc_perf <- 1 - mpmms_error
+mcmc_sd <- c(NA, NA)
 
-# Section B.2 ----
-## Tables 3-5 ----
+geco_diag <- read.csv(paste0(results_folder, "diagnostics.csv"))
+load(paste0(linkage_folder, "geco1_results.Rdata"))
+
+n_ci_geco <- quantile(geco_diag$numObservedEntities, c(.025, .975))
+
 ## load downstream results
 # noise = 1
 load(paste0(reg_folder, "geco_dblink_coverage_bpsigma_1.Rdata"))
@@ -271,68 +268,25 @@ bias_tmp %>%
   rename(Model = model) %>%
   ungroup() -> m0_bias_df1
 
-
-## Table 3 ----
-mse_table %>% rename(Model = prototype) %>%
+## Table 2 ----
+mse_table %>% rename(Model = model)  %>%
   full_join(m0_bias_df, by = c("Model", "noise")) %>%
   full_join(coverage_table, by = c("Model", "noise", "var")) %>%
-  full_join(mse_table1 %>% rename(Model = prototype), by = c("Model", "noise")) %>%
+  full_join(mse_table1 %>% rename(Model = model), by = c("Model", "noise")) %>%
   full_join(m0_bias_df1, by = c("Model", "noise", "var")) %>%
   full_join(coverage_table1, by = c("Model", "noise", "var")) %>%
   ungroup() -> all_m0_df
 
 all_m0_df %>% 
-  filter(var == "X.Intercept.") %>% 
+  filter(var == "income") %>% 
   arrange(noise, Model) %>% 
   select(-noise, -var) %>%
   kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-intercept} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the intercept coefficient for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
+        caption = "\\label{tab:m0-bias-coverage-supp} Mean and standard deviation (in parenthesis) for MSE, bias, and coverage of the 90\\% credible interval for income for regression based on five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 simulated data sets.", escape = FALSE, 
         col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Intercept" = 6)) %>%
-  landscape()
-
-## Table 4 ----
-all_m0_df %>% 
-  filter(var == "sexM") %>% 
-  arrange(noise, Model) %>% 
-  select(-noise, -var) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-sex} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the coefficient for sex for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Sex" = 6)) %>%
-  landscape()
+  pack_rows("$\\\\sigma = 1$", 1, 6, escape = FALSE) %>%
+  pack_rows("$\\\\sigma = 2$", 7, 12, escape = FALSE) %>%  
+  pack_rows("$\\\\sigma = 5$", 13, 18, escape = FALSE) %>%
+  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3))
 
 
-## Table 5 ----
-all_m0_df %>% 
-filter(var == "sexM.income") %>% 
-  arrange(noise, Model) %>% 
-  select(-noise, -var) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-sex-income} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the coefficient for the interaction of sex and income for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3)) %>%
-  add_header_above(c(" ", "Sex*Income" = 6)) %>%
-  landscape()
-
-# Section B.3 ----
-## Figure 1 ----
-geco_diag <- read.csv(paste0(results_folder, "diagnostics.csv"))
-
-geco_diag %>%
-  dplyr::select(-`systemTime-ms`) %>%
-  gather(-iteration, key = "metric", value = "value") %>%
-  ggplot() +
-  geom_line(aes(iteration, value, group = metric)) +
-  facet_wrap(.~metric, scales = "free_y")

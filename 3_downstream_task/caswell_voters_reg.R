@@ -1,6 +1,6 @@
 ## File: caswell_voters_reg.R
 ## Purpose: Perform downstream task on caswell voters data
-## Date: 02/15/2021
+## Date: 02/03/2022
 
 # TODO ----
 # 0. Be sure the record linkage results and canonicalization results have completed for caswell county.

@@ -1,6 +1,6 @@
 ## File: geco_x.R
 ## Purpose: save geco_x data in Rdata format (no dups in y)
-## Date: 02/15/2021
+## Date: 02/03/2022
 
 # TODO ----
 # 0. Be sure you have run geco.R

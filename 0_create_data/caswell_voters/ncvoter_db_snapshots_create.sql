@@ -1,6 +1,6 @@
 -- File: ncvoter_db_snapshots_create.sql
 -- Purpose: create snapshot tables
--- Date: 02/15/2021
+-- Date: 02/03/2022
 
 -- First convert snapshot files to UTF-8 for loading into db
 -- See https://dev.mysql.com/doc/mysql-reslimits-excerpt/5.6/en/charset-restrictions.html

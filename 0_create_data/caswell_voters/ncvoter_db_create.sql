@@ -1,6 +1,6 @@
 -- File: ncvoter_db_create.sql
 -- Purpose: create ncvoter mysql database
--- Date: 02/15/2021
+-- Date: 02/03/2022
 
 -- login to mysql
 -- mysql -u root -p

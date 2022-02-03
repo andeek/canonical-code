@@ -4,7 +4,6 @@ Code appendix accompanying the paper "Entity Resolution and the Downstream Task:
 
 This appendix contains the following folders:
 
-1. representr -- An R package for performing the canonicalization methods used in the paper.
 2. 0_create_data -- A folder of scripts to either simulate data (geco) or clean data available from the web used in the paper (caswell_voters).
 3. 1_record_linkage -- Configuration files for performing record linkage using the dblink (v0.1.0) package. Also includes an R script for organizing the resulting posterior draws.
 4. 2_canonicalization -- Scripts for performing canonicalization on the Caswell county and GeCO data sets.
@@ -21,7 +20,7 @@ The following is a list of packages and technologies that must be installed and 
 
 See https://dev.mysql.com/doc/mysql-getting-started/en/ for details on getting started with MySQL.
 
-**R version 3.6.3**
+**R version > 4.1.1**
 
 1. ggplot2 (CRAN)
 2. dplyr (CRAN)
@@ -31,11 +30,12 @@ See https://dev.mysql.com/doc/mysql-getting-started/en/ for details on getting s
 6. rvest (CRAN)
 7. sparklyr (CRAN)
 8. sparklyr.nested (https://github.com/mitre/sparklyr.nested)
-9. representr (representr folder)
+9. representr (CRAN)
 10. rstanarm (CRAN)
 11. tidyverse (CRAN)
 12. knitr (CRAN)
 13. kableExtra (CRAN)
+14. representr (CRAN)
 
 **Python 2.7.16**
 

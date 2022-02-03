@@ -1,6 +1,6 @@
 -- File: ncvoter_voters_create.sql
 -- Purpose: create voters tables for caswell county
--- Date: 02/15/2021
+-- Date: 02/03/2022
 
 -- location of csv saved can be changed in lines 69 and 76 below.
 

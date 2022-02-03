@@ -1,19 +1,19 @@
 ## File: section_4.R
-## Purpose: Create figures and plots from Section 4 of paper
-## Date: 02/15/2021
+## Purpose: Create figures and tables from Section 4 of paper.
+## Date: 02/03/2022
 
 # TODO ----
 # 0. Be sure you have run all code in folders 0_create_data through 3_downstream_task
-# 1. denote geco record linkage results folder location
+# 1. denote caswell record linkage results folder location
 #    where are your lambdas stored as a result of 1_record_linkage/lambdas/get_lambdas.R?
 linkage_folder <- "./"
 #    where are the raw linkage results stored as a result of 1_record_linkage/caswell_voters/caswell.conf?
 results_folder <- "./"
-# 2. denote geco data folder location
-#    where is your data stored as a result of 0_create_data/geco/geco.R and 0_create_data/geco/geco_x.R??
+# 2. denote caswell data folder location
+#    where is your data stored as a result of 0_create_data/ncvoter/caswell_voters.R?
 data_folder <- "./"
 # 3. denote canonicalization output folder location
-#    where are the canonicalization results stored as a result of 2_canonicalization/geco_pp_weights.R?
+#    where are the canonicalization results stored as a result of 2_canonicalization/caswell_voters_canonical.R?
 canonical_folder <- "./"
 # 4. denote downstream task output folder location
 #    where are the canonicalization results stored as a result of 3_downstream_task/caswell_voters_reg.R?
@@ -23,389 +23,187 @@ reg_folder <- "./"
 library(tidyverse) # plotting, data manip, etc.
 library(knitr) # tables
 library(kableExtra)
+library(ggridges) # ridge plots
 
 theme_set(theme_bw(base_family = "serif"))
 set.seed(42)
 
-# Section 4 ----
-load(paste0(data_folder, "geco_bpsigma_1.Rdata"))
-data_1 <- data
-test_data_1 <- test_data
-identity_1 <- identity
-originals_idx_1 <- originals_idx
+# Section 5 ----
+## caswell-rl-results
+caswell_rl_res <- readLines(paste0(results_folder, "evaluation-results.txt"))
+caswell_precision <- as.numeric(stringr::str_extract(caswell_rl_res[4], "\\d.\\d+"))
+caswell_recall <- as.numeric(stringr::str_extract(caswell_rl_res[5], "\\d.\\d+"))
 
-load(paste0(data_folder, "geco_bpsigma_2.Rdata"))
-data_2 <- data
-test_data_2 <- test_data
-identity_2 <- identity
-originals_idx_2 <- originals_idx
+caswell_diag <- read.csv(paste0(results_folder, "caswell_voters_results/diagnostics.csv"))
+load(pasteo(linkage_folder, "caswell_voters_results.Rdata"))
 
-load(paste0(data_folder, "geco_bpsigma_5.Rdata"))
-data_5 <- data
-test_data_5 <- test_data
-identity_5 <- identity
-originals_idx_5 <- originals_idx
-
-rm(data)
-rm(test_data)
-rm(identity)
-rm(originals_idx)
-
-## Estimated entities
-perf <- readLines(paste0(results_folder, "evaluation-results.txt"))
-mpmms_error <- 1 - c(as.numeric(stringr::str_extract(perf[5], "\\d+.\\d+")), as.numeric(stringr::str_extract(perf[4], "\\d+.\\d+")))
-mcmc_perf <- 1 - mpmms_error
-mcmc_sd <- c(NA, NA)
-
-geco_diag <- read.csv(paste0(results_folder, "diagnostics.csv"))
-load(paste0(linkage_folder, "geco1_results.Rdata"))
-
-n_ci_geco <- quantile(geco_diag$numObservedEntities, c(.025, .975))
+n_ci <- quantile(caswell_diag$numObservedEntities, c(.025, .975))
 
 ## Figure 1 ----
-load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_1.Rdata"))
-pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
-  gather(record_id, pp_weight, -iter) %>%
-  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
-  select(-junk) %>%
-  mutate(record_id = as.numeric(record_id), noise = 1)
+# load canonicalization results
+load(paste0(canonical_folder, "caswell_voters_proto.Rdata"))
 
-load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_2.Rdata"))
-pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
-  gather(record_id, pp_weight, -iter) %>%
-  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
-  select(-junk) %>%
-  mutate(record_id = as.numeric(record_id), noise = 2) %>%
-  bind_rows(pp_weights_df)
-
-load(paste0(canonical_folder, "geco_dblink_pp_weights_bpsigma_5.Rdata"))
-pp_weights_df <- data.frame(iter = 1:100, pp_weights) %>%
-  gather(record_id, pp_weight, -iter) %>%
-  separate(record_id, into = c("junk", "record_id"), sep = "X") %>%
-  select(-junk) %>%
-  mutate(record_id = as.numeric(record_id), noise = 5) %>%
-  bind_rows(pp_weights_df)
-
-pp_weights_df %>%
-  group_by(record_id) %>%
-  summarise(mean_pp_weight = mean(pp_weight)) %>%
-  right_join(pp_weights_df, by = c("record_id")) %>%
-  mutate(dup = ! record_id %in% originals_idx) %>% 
-  ungroup() %>%
-  dplyr::mutate(record_id = factor(record_id)) %>%
-  dplyr::mutate(record_id = fct_reorder(record_id, mean_pp_weight)) %>%
-  dplyr::mutate(noise = paste0(expression("sigma[epsilon]=="), noise)) -> pp_weights_df
-
-pp_weights_df %>%
-  ggplot() +
-  geom_boxplot(aes(record_id, pp_weight, fill = dup, colour = dup)) +
-  geom_hline(aes(yintercept = 0.5), lty = 2) +
-  facet_grid(noise~., labeller = label_parsed) +
-  theme(legend.position = "bottom",
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        panel.grid.minor.x = element_blank(),
-        panel.grid.major.x = element_blank()) +
-  xlab("Record") + ylab("PC Weight Distribution (100 repetitions)") +
-  scale_colour_discrete("Duplicate") +
-  scale_fill_discrete("Duplicate")
-
-pp_weights_df %>%
-  group_by(noise, iter) %>%
-  summarise(n = sum(pp_weight >= 0.5)) %>%
-  group_by(noise) %>%
-  summarise(mean_n = mean(n), median_n = median(n), sd_n = sd(n), ub_n = quantile(n, .975), lb_n = quantile(n, .025)) -> summary_n
-
-## load downstream results
-# noise = 1
-load(paste0(reg_folder, "geco_dblink_bpsigma_1.Rdata"))
-load(paste0(reg_folder, "geco_dblink_coverage_bpsigma_1.Rdata"))
-df_mse_1 <- df_mse
-kl_div_df <- kl_div %>% mutate(noise = 1)
-m0_coefs_df <- m0_coefs %>% mutate(noise = 1)
-coverage_df <- m0_coefs_coverage %>% mutate(noise = 1)
-betas_df <- betas %>% mutate(noise = 1)
-
-# noise = 2
-load(paste0(reg_folder, "geco_dblink_bpsigma_2.Rdata"))
-load(paste0(reg_folder, "geco_dblink_coverage_bpsigma_2.Rdata"))
-df_mse_2 <- df_mse
-kl_div_df <- bind_rows(kl_div_df, kl_div %>% mutate(noise = 2))
-m0_coefs_df <- bind_rows(m0_coefs_df, m0_coefs %>% mutate(noise = 2))
-coverage_df <- bind_rows(coverage_df, m0_coefs_coverage %>% mutate(noise = 2))
-betas_df <- bind_rows(betas_df, betas %>% mutate(noise = 2))
-
-# noise = 5
-load(paste0(reg_folder, "geco_dblink_bpsigma_5.Rdata"))
-load(paste0(reg_folder, "geco_dblink_coverage_bpsigma_5.Rdata"))
-df_mse_5 <- df_mse
-kl_div_df <- bind_rows(kl_div_df, kl_div %>% mutate(noise = 5))
-m0_coefs_df <- bind_rows(m0_coefs_df, m0_coefs %>% mutate(noise = 5))
-coverage_df <- bind_rows(coverage_df, m0_coefs_coverage %>% mutate(noise = 5))
-betas_df <- bind_rows(betas_df, betas %>% mutate(noise = 5))
-
-true_coefs <- data.frame(var = c("X.Intercept.", "sexM", "income", "sexM.income"), true_val = c(160, 10, -1, 0.5), stringsAsFactors = FALSE)
-
-## organize and format results
-# combine results
-df_mse <- bind_rows(df_mse_1 %>% mutate(noise = 1),
-                    df_mse_2 %>% mutate(noise = 2),
-                    df_mse_5 %>% mutate(noise = 5))
-
-## MSE results
-df_mse %>% 
-  gather(prototype, mse, -noise) %>%
-  mutate(prototype = factor(prototype, levels = c("pw_random", "pw_average", "pw_minimax", "random", "average", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  filter(substr(prototype, 1, 2) != "PW") %>%
-  group_by(prototype, noise) %>%
-  dplyr::summarise(sd = sd(mse), mse = mean(mse)) %>%
-  mutate(value = ifelse(sd == 0, as.character(round(mse, 2)), paste0(round(mse, 2), " (", scales::number(sd, accuracy = .0001), ")"))) %>%
-  dplyr::select(-sd) %>%
-  group_by(noise) %>%
-  dplyr::mutate(min = mse[prototype != "True"][order(mse[prototype != "True"])][1]) %>%
-  dplyr::mutate(value = ifelse(round(mse, 2) == round(min, 2), paste0("\\textbf{", value, "}"), value)) %>%
-  dplyr::select(-min, -mse) %>%
-  dplyr::rename(mse = value) -> mse_table
-
-## KL results
-kl_div_df %>% 
-  dplyr::rename(prototype = method) %>%
-  dplyr::mutate(prototype = ifelse(prototype == "paverage", "pw_average", 
-                                   ifelse(prototype == "pminimax", "pw_minimax", 
-                                          ifelse(prototype == "prandom", "pw_random", prototype)))) %>%
-  dplyr::mutate(prototype = factor(prototype, levels = c("pw_random", "pw_average", "pw_minimax", "random", "average", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  dplyr::filter(substr(prototype, 1, 2) != "PW") %>%
-  group_by(prototype, noise) %>%
-  dplyr::summarise(sd = sd(kl_div), kl_div = mean(kl_div)) %>%
-  dplyr::mutate(value = ifelse(sd == 0, as.character(round(kl_div, 4)), paste0(round(kl_div, 4), " (", scales::number(sd, accuracy = .000001), ")"))) %>%
-  dplyr::select(-sd) %>%
-  group_by(noise) %>%
-  dplyr::mutate(min = kl_div[prototype != "True"][order(kl_div[prototype != "True"])][1]) %>%
-  dplyr::mutate(value = ifelse(round(kl_div, 4) == round(min, 4), paste0("\\textbf{", value, "}"), value)) %>%
-  dplyr::select(-min, -kl_div) %>%
-  dplyr::rename(kl_div = value) -> kl_div_table
-
-## coverage results
-coverage_df %>%
-  dplyr::select(X.Intercept.:sexM.income, statistic, model, iter, noise) %>%
-  dplyr::mutate(model = factor(model, levels = c("pw_random", "pw_composite", "pw_minimax", "random", "composite", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>% 
-  dplyr::filter(substr(model, 1, 2) != "PW") %>%
-  dplyr::rename(Model = model) %>%
-  gather(var, val, X.Intercept.:sexM.income) %>%
-  dplyr::filter(statistic != "mean") %>%
-  spread(statistic, val) %>% 
-  dplyr::left_join(betas_df %>% gather(var, true_val, -iter, -noise)) %>% 
-  dplyr::mutate(covered = true_val >= `2.5%` & true_val <= `97.5%`) %>%
-  group_by(Model, noise, var) %>%
-  dplyr::summarise(coverage = sum(covered)/n()) %>%
-  group_by(noise, var) %>%
-  dplyr::mutate(max = min(abs(coverage[Model != "True"] - .95))) %>%
-  dplyr::mutate(coverage = ifelse(round(abs(coverage - .95), 2) == round(max, 2) & Model != "True", paste0("\\textbf{", round(coverage, 2), "}"), round(coverage, 2))) %>%
-  ungroup() %>%
-  dplyr::select(-max) -> coverage_table
-
-## Bias results
-m0_coefs_df %>% 
-  dplyr::mutate(model = factor(model, levels = c("pw_random", "pw_composite", "pw_minimax", "random", "composite", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  dplyr::filter(substr(model, 1, 2) != "PW") %>%
-  dplyr::select(X.Intercept.:sexM.income, statistic, model, iter, noise) %>%
-  gather(var, val, X.Intercept.:sexM.income) %>%
-  dplyr::left_join((true_coefs)) %>%
-  dplyr::mutate(var = factor(var, levels = c("X.Intercept.", "sexM", "income", "sexM.income"))) %>%
-  dplyr::mutate(bias = val - true_val) %>%
-  dplyr::filter(statistic == "mean") %>%
-  dplyr::select(-true_val, -val) %>%
-  group_by(var, model, noise) %>%
-  dplyr::summarise(mean_bias = mean(bias), sd_bias = sd(bias)) -> bias_tmp
-
-bias_tmp %>%
-  dplyr::filter(model != "True") %>% 
-  group_by(var, noise) %>%
-  dplyr::summarise(min_mean_bias = min(abs(mean_bias))) -> min_mean_bias
-
-bias_tmp %>%
-  dplyr::left_join(min_mean_bias) %>%
-  group_by(var, model, noise) %>%
-  dplyr::transmute(bias = ifelse(abs(round(mean_bias, 2)) == round(min_mean_bias, 2), 
-                                 paste0("\\textbf{", round(mean_bias, 2), " (", scales::number(sd_bias, accuracy = .00001), ")}"), 
-                                 paste0(round(mean_bias, 2), " (", scales::number(sd_bias, accuracy = .00001), ")"))) %>%
-  dplyr::rename(Model = model) %>%
-  ungroup() -> m0_bias_df
-
-## load data x
-load(paste0(data_folder, "geco_x_bpsigma_1.Rdata"))
-data_1 <- data
-test_data_1 <- test_data
-identity_1 <- identity
-originals_idx_1 <- originals_idx
-
-load(paste0(data_folder, "geco_x_bpsigma_2.Rdata"))
-data_2 <- data
-test_data_2 <- test_data
-identity_2 <- identity
-originals_idx_2 <- originals_idx
-
-load(paste0(data_folder, "geco_x_bpsigma_5.Rdata"))
-data_5 <- data
-test_data_5 <- test_data
-identity_5 <- identity
-originals_idx_5 <- originals_idx
-
-rm(data)
-rm(test_data)
-rm(identity)
-rm(originals_idx)
-
-## load results x
-# noise = 1
-load(paste0(reg_folder, "geco_x_dblink_bpsigma_1.Rdata"))
-load(paste0(reg_folder, "geco_x_dblink_coverage_bpsigma_1.Rdata"))
-df_mse_1 <- df_mse
-kl_div_df <- kl_div %>% mutate(noise = 1)
-m0_coefs_df <- m0_coefs %>% mutate(noise = 1)
-coverage_df <- m0_coefs_coverage %>% mutate(noise = 1)
-betas_df <- betas %>% mutate(noise = 1)
-
-# noise = 2
-load(paste0(reg_folder, "geco_x_dblink_bpsigma_2.Rdata"))
-load(paste0(reg_folder, "geco_x_dblink_coverage_bpsigma_2.Rdata"))
-df_mse_2 <- df_mse
-kl_div_df <- bind_rows(kl_div_df, kl_div %>% mutate(noise = 2))
-m0_coefs_df <- bind_rows(m0_coefs_df, m0_coefs %>% mutate(noise = 2))
-coverage_df <- bind_rows(coverage_df, m0_coefs_coverage %>% mutate(noise = 2))
-betas_df <- bind_rows(betas_df, betas %>% mutate(noise = 2))
-
-# noise = 5
-load(paste0(reg_folder, "geco_x_dblink_bpsigma_5.Rdata"))
-load(paste0(reg_folder, "geco_x_dblink_coverage_bpsigma_5.Rdata"))
-df_mse_5 <- df_mse
-kl_div_df <- bind_rows(kl_div_df, kl_div %>% mutate(noise = 5))
-m0_coefs_df <- bind_rows(m0_coefs_df, m0_coefs %>% mutate(noise = 5))
-coverage_df <- bind_rows(coverage_df, m0_coefs_coverage %>% mutate(noise = 5))
-betas_df <- bind_rows(betas_df, betas %>% mutate(noise = 5))
+ggplot() + 
+  geom_histogram(aes(pp_weights), binwidth = .001) +
+  xlab("PC Weights") +
+  ylab("") 
 
 
-## ----organize-rl-results-x----------------------------------------------------
-# combine results for results table
-df_mse <- bind_rows(df_mse_1 %>% mutate(noise = 1),
-                    df_mse_2 %>% mutate(noise = 2),
-                    df_mse_5 %>% mutate(noise = 5))
-
-## ----format-results-x---------------------------------------------------------
-## MSE results ---
-df_mse %>% 
-  gather(prototype, mse, -noise) %>%
-  dplyr::mutate(prototype = factor(prototype, levels = c("pw_random", "pw_average", "pw_minimax", "random", "average", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  dplyr::filter(substr(prototype, 1, 2) != "PW") %>%
-  group_by(prototype, noise) %>%
-  dplyr::summarise(sd = sd(mse), mse = mean(mse)) %>%
-  dplyr::mutate(value = ifelse(sd == 0, as.character(round(mse, 2)), paste0(round(mse, 2), " (", scales::number(sd, accuracy = .00001), ")"))) %>%
-  dplyr::select(-sd) %>%
-  group_by(noise) %>%
-  dplyr::mutate(min = mse[prototype != "True"][order(mse[prototype != "True"])][1]) %>%
-  dplyr::mutate(value = ifelse(round(mse, 2) == round(min, 2) & prototype != "True", paste0("\\textbf{", value, "}"), value)) %>%
-  dplyr::select(-min, -mse) %>%
-  dplyr::rename(mse = value) -> mse_table1
-
-## KL results
-kl_div_df %>% 
-  rename(prototype = method) %>%
-  mutate(prototype = ifelse(prototype == "paverage", "pw_average", 
-                            ifelse(prototype == "pminimax", "pw_minimax", 
-                                   ifelse(prototype == "prandom", "pw_random", prototype)))) %>%
-  mutate(prototype = factor(prototype, levels = c("pw_random", "pw_average", "pw_minimax", "random", "average", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  filter(substr(prototype, 1, 2) != "PW") %>%
-  group_by(prototype, noise) %>%
-  summarise(sd = sd(kl_div), kl_div = mean(kl_div)) %>%
-  mutate(value = ifelse(sd == 0, as.character(round(kl_div, 4)), paste0(round(kl_div, 4), " (", scales::number(sd, .000001), ")"))) %>%
-  dplyr::select(-sd) %>%
-  group_by(noise) %>%
-  mutate(min = kl_div[prototype != "True"][order(kl_div[prototype != "True"])][1]) %>%
-  mutate(value = ifelse(round(kl_div, 4) == round(min, 4) & prototype != "True", paste0("\\textbf{", value, "}"), value)) %>%
-  dplyr::select(-min, -kl_div) %>%
-  rename(kl_div = value) -> kl_div_table1
-
-## coverage results
-coverage_df %>%
-  select(X.Intercept.:sexM.income, statistic, model, iter, noise) %>%
-  mutate(model = factor(model, levels = c("pw_random", "pw_composite", "pw_minimax", "random", "composite", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  filter(substr(model, 1, 2) != "PW") %>%
-  rename(Model = model) %>%
-  gather(var, val, X.Intercept.:sexM.income) %>%
-  filter(statistic != "mean") %>%
-  spread(statistic, val) %>%
-  left_join(betas_df %>% gather(var, true_val, -iter, -noise)) %>% 
-  mutate(covered = true_val >= `2.5%` & true_val <= `97.5%`) %>%
-  group_by(Model, noise, var) %>%
-  summarise(coverage = sum(covered)/n()) %>%
-  group_by(noise, var) %>%
-  mutate(max = min(abs(coverage[Model != "True"] - .95))) %>%
-  mutate(coverage = ifelse(round(abs(coverage - .95), 2) == round(max, 2) & Model != "True", paste0("\\textbf{", round(coverage, 2), "}"), round(coverage, 2))) %>%
-  ungroup() %>%
-  select(-max) -> coverage_table1
-
-## Bias results
-m0_coefs_df %>% 
-  dplyr::mutate(model = factor(model, levels = c("pw_random", "pw_composite", "pw_minimax", "random", "composite", "minimax", "pp_weighted", "pp_thresh", "true"), labels = c("PW Random", "PW Composite", "PW Minimax", "Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "True"))) %>%
-  dplyr::filter(substr(model, 1, 2) != "PW") %>%
-  dplyr::select(X.Intercept.:sexM.income, statistic, model, iter, noise) %>%
-  gather(var, val, X.Intercept.:sexM.income) %>%
-  dplyr::left_join((true_coefs)) %>%
-  dplyr::mutate(var = factor(var, levels = c("X.Intercept.", "sexM", "income", "sexM.income"))) %>%
-  dplyr::mutate(bias = val - true_val) %>%
-  filter(statistic == "mean") %>%
-  dplyr::select(-true_val, -val) %>%
-  group_by(var, model, noise) %>%
-  dplyr::summarise(mean_bias = mean(bias), sd_bias = sd(bias)) -> bias_tmp
-
-bias_tmp %>%
-  dplyr::filter(model != "True") %>% 
-  group_by(var, noise) %>%
-  dplyr::summarise(min_mean_bias = min(abs(mean_bias))) -> min_mean_bias
-
-bias_tmp %>%
-  dplyr::left_join(min_mean_bias) %>%
-  group_by(var, model, noise) %>%
-  dplyr::transmute(bias = ifelse(abs(round(mean_bias, 2)) == round(min_mean_bias, 2) & model != "True", paste0("\\textbf{", round(mean_bias, 2), " (", scales::number(sd_bias, accuracy = .00001), ")}"), paste0(round(mean_bias, 2), " (", scales::number(sd_bias, accuracy = .00001), ")"))) %>%
-  rename(Model = model) %>%
-  ungroup() -> m0_bias_df1
+## Figure 3 ----
+ggplot() + 
+  geom_histogram(aes(pp_weights_time), binwidth = .001) +
+  xlab("PC Weights with Timestamp Distance") +
+  ylab("") 
 
 ## Table 3 ----
-kl_div_table %>%
-  full_join(kl_div_table1, by = c("prototype", "noise")) %>%
-  ungroup() %>%
-  mutate_if(is.character, coalesce, "0") -> kl_div_df
+# load data
+# caswell data
+load(paste0(data_folder, "caswell_voters.Rdata"))
+data <- caswell_voters[caswell_voters$party_cd %in% c("DEM", "REP"),] # only care about democrats and republicans
+caswell_voters <- caswell_voters[caswell_voters$party_cd %in% c("DEM", "REP"),]
+rownames(data) <- 1:nrow(data) # renumber
+rownames(caswell_voters) <- 1:nrow(caswell_voters) # renumber
 
-kl_div_df %>% arrange(noise, prototype) %>% select(-noise) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:kl_div_table_2} Mean and standard deviation (in parenthesis) of KL divergence for all five canonicalization methods in two data scenarios -- errors in all downstream variables (left) and errors in explanatory variables only (right) -- for three noise levels, $\\sigma = 1, 2, 5$. The evaluation metrics are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("$\\hat{D}_{KL}$"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 5, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 6, 10, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 11, 15, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 1, "Errors in Explanatory Variables Only" = 1))
+# truth 
+temp <- tempfile()
+download.file("https://s3.amazonaws.com/dl.ncsbe.gov/data/ncvoter17.zip", temp)
+truth_caswell <- read.delim(unz(temp, "ncvoter17.txt"), stringsAsFactors = FALSE)
+unlink(temp)
 
-## Table 4 ----
-mse_table %>% rename(Model = prototype) %>%
-  full_join(m0_bias_df, by = c("Model", "noise")) %>%
-  full_join(coverage_table, by = c("Model", "noise", "var")) %>%
-  full_join(mse_table1 %>% rename(Model = prototype), by = c("Model", "noise")) %>%
-  full_join(m0_bias_df1, by = c("Model", "noise", "var")) %>%
-  full_join(coverage_table1, by = c("Model", "noise", "var")) %>%
-  ungroup() -> all_m0_df
+## match column names and values
+keep_vars <- c("last_name", "first_name", "middle_name", "res_street_address", "race_code", "ethnic_code", "party_cd", "gender_code", "birth_age", "birth_state")
 
-all_m0_df %>% 
-  filter(var == "income") %>% 
-  arrange(noise, Model) %>% 
-  select(-noise, -var) %>%
-  kable("latex", align = "c", booktabs = T, 
-        caption = "\\label{tab:m0-bias-coverage-supp} Mean and standard deviation (in parenthesis) for MSE and bias, and coverage of the 95\\% credible interval of the regression coefficient for income for five canonicalization methods and the true data set for levels of noise $\\sigma = 1, 2, 5$. Results are based on 100 representative data sets generated for each method.", escape = FALSE, 
-        col.names = c("Method", rep(c("MSE", "Bias", "Coverage"), 2))) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 1$", 1, 6, escape = FALSE) %>%
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 2$", 7, 12, escape = FALSE) %>%  
-  pack_rows("$\\\\sigma_{\\\\epsilon} = 5$", 13, 18, escape = FALSE) %>%
-  add_header_above(c(" ", "Errors in All Downstream Variables" = 3, "Errors in Explanatory Variables Only" = 3))
+truth_caswell_p <- truth_caswell[truth_caswell$party_cd %in% c("DEM", "REP") & truth_caswell$voter_status_desc %in% c("ACTIVE", "INACTIVE"), keep_vars]
+truth_caswell_p <- droplevels(truth_caswell_p)
+rm(truth_caswell)
 
+names(truth_caswell_p)[3] <- "midl_name"
+names(truth_caswell_p)[8] <- "sex_code"
+names(truth_caswell_p)[9] <- "age"
+names(truth_caswell_p)[10] <- "birth_place"
 
+truth_caswell_p$birth_place[truth_caswell_p$birth_place == ""] <- "99_BLANK"
 
+cat_vars <- c("race_code", "ethnic_code", "party_cd", "sex_code", "birth_place")
+num_vars <- c("age")
+vars <- c(cat_vars, num_vars)
 
+## prototyping for caswell
+# get estimated links mpmms
+# functions for working with mpmms
+memb2clust <- function(membership, include.singletons=FALSE) {
+  membership.freqs <- table(membership)
+  inv.index <- vector(mode="list", length=length(membership.freqs))
+  names(inv.index) <- names(membership.freqs)
+  if (is.null(names(membership))) {
+    named.membership = FALSE
+  } else {
+    named.membership = TRUE
+  }
+  for (i in seq_along(membership)) {
+    membership.id <- as.character(membership[i])
+    if (named.membership) {val.i <- names(membership)[i]} else {val.i <- i}
+    inv.index[[membership.id]] <- c(inv.index[[membership.id]],val.i)
+  }
+  if (!include.singletons) {
+    sizes <- sapply(inv.index, length)
+    inv.index <- inv.index[sizes > 1]
+  }
+  return(inv.index)
+}
+clust2pairs <- function(clusters) {
+  pairs <- list()
+  for (i in seq_along(clusters)) {
+    clust.i <- clusters[[i]]
+    n.i <- length(clust.i)
+    if (n.i == 2) {
+      # set is already a pair
+      pairs[[length(pairs)+1]] <- clust.i
+    } else if (n.i > 2) {
+      # break up cluster into pairs
+      for(j1 in seq(1, n.i-1)) {
+        for(j2 in seq(j1+1, n.i)) {
+          pairs[[length(pairs)+1]] <- c(clust.i[j1],clust.i[j2])
+        }
+      }
+    }
+  }
+  return(pairs)
+}
+mpmms_clust <- memb2clust(mpmms_lambda)
+mpmms_pair <- clust2pairs(memb2clust(mpmms_lambda))
+
+proto_vars <- c("last_name", "first_name", "midl_name", "house_num", "street_name", "race_code", "ethnic_code", "party_cd", "sex_code", "age", "birth_place")
+col_type <- c("string", "string", "string", "numeric", "string", "categorical", "categorical", "categorical", "categorical", "numeric", "categorical")
+
+data <- caswell_voters[, proto_vars] %>% mutate_at(.vars = proto_vars[col_type != "numeric"], .funs = coalesce, "") ## replace NAs with "" for non numeric variables
+test_data <- caswell_test_voters[, proto_vars]
+data$birth_place[data$birth_place == ""] <- "99_BLANK"
+data$birth_place[data$birth_place == "GU"] <- "99_BLANK" ## this is throwing errors, 4 records with GU
+
+## match proto results approx to truth
+data$res_street_addess <- paste(data$house_num, data$street_name, sep = " ")
+df_average$res_street_addess <- paste(df_average$house_num, df_average$street_name, sep = " ")
+df_average$birth_place <- as.character(df_average$birth_place)
+df_average$birth_place[df_average$birth_place == ""] <- "99_BLANK"
+df_average$birth_place[df_average$birth_place == "GU"] <- "99_BLANK" ## this is throwing errors, 1 records with GU
+
+kl_random <- emp_kl_div(truth_caswell_p[, vars], data[id_random, vars], cat_vars, num_vars)
+kl_minimax <- emp_kl_div(truth_caswell_p[, vars], data[id_minimax, vars], cat_vars, num_vars)
+kl_composite <- emp_kl_div(truth_caswell_p[, vars], df_average[, vars], cat_vars, num_vars)
+kl_thresh <- emp_kl_div(truth_caswell_p[, vars], data[pp_weights >= 0.5, vars], cat_vars, num_vars)
+kl_weight <- emp_kl_div(truth_caswell_p[, vars], data[, vars], cat_vars, num_vars, weights = pp_weights)
+kl_thresh_time <- emp_kl_div(truth_caswell_p[, vars], data[pp_weights_time >= 0.5, vars], cat_vars, num_vars)
+kl_weight_time <- emp_kl_div(truth_caswell_p[, vars], data[, vars], cat_vars, num_vars, weights = pp_weights_time)
+
+data.frame(prototype = c("Random", "Composite", "Minimax", "PC Weighted", "PC Threshold", "PC Weighted (Timestamp)", "PC Threshold (Timestamp)"),
+           kl_div = c(kl_random, kl_composite, kl_minimax, kl_weight, kl_thresh, kl_weight_time, kl_thresh_time)) %>%
+  mutate(kl_div = round(kl_div, 4)) %>%
+  mutate(kl_div = ifelse(kl_div == min(kl_div), paste0("\\textbf{", kl_div, "}"), kl_div)) %>%
+  kable(caption = "\\label{tab:caswell_kl_div_table}Evaluation of all canonicalization methods for the NCVD data set in Caswell Country using empirical KL divergence ($\\hat{D}_{KL}$). The lowest empirical KL divergence is indicated in bold.", 
+        escape = FALSE, align = c("l", "r"),
+        booktabs = TRUE, col.names = c("Method", "$\\hat{D}_{KL}$"), linesep = "") 
+
+## Table 3 ----
+est_clusters[[which(uni_clust == 5)[3]]] %>%
+  unique() %>%
+  rownames() %>%
+  as.numeric() -> which_example
+
+est_clusters[[which(uni_clust == 5)[3]]] %>%
+  unique() %>%
+  mutate(pp_weights = pp_weights[which_example], pp_weights_time = pp_weights_time[which_example]) %>%
+  mutate(pp_weights = ifelse(pp_weights >= 0.5, paste0("\\textbf{", pp_weights, "}"), as.character(pp_weights)),
+         pp_weights_time = ifelse(pp_weights_time >= 0.5, paste0("\\textbf{", pp_weights_time, "}"), as.character(pp_weights_time))) %>%
+  rowwise() %>%
+  rename_("First" = "first_name", "Last" = "last_name", "Sex" = "sex",
+          "Race" = "race_desc", "Age" = "age", "Party" = "party_cd", 
+          "PC Weight" = "pp_weights", "PC Weight (Timestamp)" = "pp_weights_time") %>%
+  select(Last, First, Race, Sex, Age, Party, `PC Weight`, `PC Weight (Timestamp)`) %>%
+  rename(`\\multicolumn{1}{>{\\centering}p{.9in}}{PC Weight (Timestamp)}` = `PC Weight (Timestamp)`) %>%
+  kable(caption = "\\label{tab:ex-records-weights} Five records that represent the same voter with their respective PC weights both with and without timestamp information. PC weights above $\\tau_{PC} = 0.5$ are bolded.", digits = 0, 
+        escape = FALSE,
+        booktabs = TRUE, align = c("l", "l", "l", "l", "l", "l", "r", "r")) 
+
+## Figure 2 ----
+# noise = 0
+load(paste0(canonical_folder, "caswell_voters_proto.Rdata"))
+pp_weights_df <- data.frame(weights = pp_weights, noise = 0, type = "col_wise")
+pp_weights_df <- bind_rows(pp_weights_df, data.frame(weights = pp_weights_time, noise = 0, type = "timestamp"))
+
+load(paste0(reg_folder, "caswell_voters_reg.Rdata"))
+
+auc_dsn %>%
+  mutate(Model = factor(Model, 
+                        labels = rev(c("Random", "Composite", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")), 
+                        levels = rev(c("Random", "Average", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")))) %>%
+  ggplot(aes(y = Model, x = auc)) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.025, 0.5, 0.975), vline_color = "white") +
+  xlab("Posterior Test Area Under ROC Curve") + ylab("")
+
+ave_prob_dsn %>%
+  mutate(Model = factor(Model, 
+                        levels = rev(c("Random", "Composite", "Minimax", "PC Threshold", "PC Weighted", "PC Threshold TS", "PC Weighted TS")))) %>%
+  ggplot(aes(y = Model, x = pp)) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.025, 0.5, 0.975), vline_color = "white") +
+  xlab("Posterior Predicted Pr(DEM | Male)") + ylab("")

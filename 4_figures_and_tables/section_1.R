@@ -1,6 +1,6 @@
 ## File: section_1.R
 ## Purpose: Create figures and plots from Section 1 of paper.
-## Date: 02/15/2021
+## Date: 02/03/2022
 
 # TODO ----
 # 0. Be sure you have run all code in folders 0_create_data through 3_downstream_task

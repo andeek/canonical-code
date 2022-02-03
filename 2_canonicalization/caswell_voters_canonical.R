@@ -1,6 +1,6 @@
 ## File: caswell_voters_canonical.R
 ## Purpose: perform canonicalization on caswell voter data
-## Date: 02/15/2021
+## Date: 02/03/2022
 
 # TODO ----
 # 0. Be sure the record linkage results have completed for caswell county.
